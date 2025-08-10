@@ -1,0 +1,390 @@
+=== start of ./philosophers.h ===
+#ifndef PHILOSOPHERS_H
+# define PHILOSOPHERS_H
+
+/* Includes: */
+# include <pthread.h>
+# include <unistd.h>
+/* Types: */
+
+typedef struct s_table
+{
+	int				size;
+	int				tt_die;
+	int				tt_eat;
+	int				tt_sleep;
+	int				meal_count;
+	int				finished;
+	long			start_time;
+	pthread_mutex_t	*forks;
+	pthread_mutex_t	printer_lock;
+}	t_table;
+
+typedef struct s_philo
+{
+	int				id;
+	int				tt_think;
+	int				left_fork;
+	int				right_fork;
+	int				meals_eaten;
+	t_table			*table;
+	pthread_t		thread;
+	volatile int	alive;
+	volatile long	last_meal;
+}	t_philo;
+
+typedef struct s_cave
+{
+	t_table	*table;
+	t_philo	*philos;
+}	t_cave;
+
+/* Macros: */
+
+/* Functions: */
+int		ft_atoi(char *s);
+int		ft_error_printer(t_cave *cave, int code);
+void	*ft_routine(void *arg);
+long	ft_current_time(void);
+t_cave	*ft_fill_cave(int size, int tt_die, int tt_eat, int tt_sleep);
+
+#endif=== end of ./philosophers.h ===
+=== start of ./clock.c ===
+#include <sys/time.h>
+#include <stdio.h>
+
+long	ft_current_time(void)
+{
+	struct timeval	tv;
+
+	gettimeofday(&tv, NULL);
+	return ((tv.tv_sec * 1000) + (tv.tv_usec / 1000L));
+}=== end of ./clock.c ===
+=== start of ./fill_cave.c ===
+#include "philosophers.h"
+#include <stdlib.h>
+
+static int	boot_table(t_table *table, int size)
+{
+	int	i;
+
+	table->size = size;
+	table->meal_count = -1;
+	table->finished = 0;
+	table->start_time = ft_current_time();
+	table->forks = malloc(sizeof(pthread_mutex_t) * size);
+	if (!table->forks)
+		return (0);
+	i = -1;
+	while (++i < size)
+		pthread_mutex_init(&table->forks[i], NULL);
+	pthread_mutex_init(&table->printer_lock, NULL);
+	return (1);
+}
+
+static int	boot_philos(t_philo **philos, t_table *table)
+{
+	int	i;
+
+	*philos = malloc(sizeof(t_philo) * table->size);
+	if (!*philos)
+		return (0);
+	i = -1;
+	while (++i < table->size)
+	{
+		(*philos)[i].id = i + 1;
+		(*philos)[i].alive = 1;
+		(*philos)[i].tt_think = ((i * 10) % 50) * 100;
+		(*philos)[i].meals_eaten = 0;
+		(*philos)[i].last_meal = table->start_time;
+		(*philos)[i].left_fork = i;
+		(*philos)[i].right_fork = (*philos)[i].id % table->size;
+		(*philos)[i].table = table;
+	}
+	return (1);
+}
+
+static t_cave	*clean_return(t_cave *cave)
+{
+	if (cave)
+	{
+		if (cave->table)
+		{
+			free(cave->table->forks);
+			free(cave->table);
+		}
+		free(cave);
+	}
+	return (NULL);
+}
+
+t_cave	*ft_fill_cave(int size, int tt_die, int tt_eat, int tt_sleep)
+{
+	t_cave	*new_cave;
+
+	new_cave = malloc(sizeof(t_cave));
+	if (!new_cave)
+		return (NULL);
+	new_cave->table = malloc(sizeof(t_table));
+	if (!new_cave->table)
+		return (clean_return(new_cave));
+	if (!boot_table(new_cave->table, size))
+		return (clean_return(new_cave));
+	new_cave->table->tt_die = tt_die;
+	new_cave->table->tt_eat = tt_eat;
+	new_cave->table->tt_sleep = tt_sleep;
+	if (!boot_philos(&(new_cave->philos), new_cave->table))
+		return (clean_return(new_cave));
+	return (new_cave);
+}
+
+=== end of ./fill_cave.c ===
+=== start of ./day_in_life.c ===
+#include "philosophers.h"
+#include <sys/time.h>
+#include <stdio.h>
+
+static void	printer(t_philo *philo, const char *status)
+{
+	long	time_now;
+
+	pthread_mutex_lock(&philo->table->printer_lock);
+	time_now = ft_current_time() - philo->table->start_time;
+	printf("%ld: Philosopher %d is %s\n", time_now, philo->id, status);
+	pthread_mutex_unlock(&philo->table->printer_lock);
+}
+
+static void	pick_forks(int id, int f_left, int f_right, int res[3])
+{
+	if (id % 2)
+	{
+		res[1] = f_right;
+		res[2] = f_left;
+	}
+	else
+	{
+		res[1] = f_left;
+		res[2] = f_right;
+	}
+}
+
+static void	eat(t_philo *philo)
+{
+	int		f_vars[3];
+	char	string[64];
+
+	f_vars[0] = philo->table->size;
+	pick_forks(philo->id, philo->left_fork, philo->right_fork, f_vars);
+	if (!philo->alive || philo->table->finished)
+		return ;
+	pthread_mutex_lock(&philo->table->forks[f_vars[1]]);
+	if (!philo->alive || philo->table->finished)
+		return ((void)pthread_mutex_unlock(&philo->table->forks[f_vars[1]]));
+	sprintf(string, "taking fork %d", f_vars[1]);
+	printer(philo, string);
+	if (!philo->alive || philo->table->finished)
+		return ;
+	pthread_mutex_lock(&philo->table->forks[f_vars[2]]);
+	if (!philo->alive || philo->table->finished)
+	{
+		pthread_mutex_unlock(&philo->table->forks[f_vars[1]]);
+		return ((void)pthread_mutex_unlock(&philo->table->forks[f_vars[2]]));
+	}
+	sprintf(string, "taking fork %d", f_vars[2]);
+	printer(philo, string);
+	philo->last_meal = ft_current_time();
+	printer(philo, "eating");
+	usleep(philo->table->tt_eat * 1000);
+	philo->meals_eaten += 1;
+	pthread_mutex_unlock(&philo->table->forks[f_vars[1]]);
+	pthread_mutex_unlock(&philo->table->forks[f_vars[2]]);
+}
+
+void	*ft_routine(void *arg)
+{
+	t_philo	*philo;
+
+	philo = (t_philo *)arg;
+	while (philo->alive && !philo->table->finished)
+	{
+		if (!philo->alive || philo->table->finished)
+			break ;
+		printer(philo, "thinking");
+		usleep(philo->tt_think);
+		if (!philo->alive || philo->table->finished)
+			break ;
+		eat(philo);
+		if (!philo->alive || philo->table->finished)
+			break ;
+		printer(philo, "sleeping");
+		if (!philo->alive || philo->table->finished)
+			break ;
+		usleep(philo->table->tt_sleep * 1000);
+	}
+	return (NULL);
+}
+
+=== end of ./day_in_life.c ===
+=== start of ./philosophers.c ===
+#include "philosophers.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+static int	philo_died(t_philo *philo)
+{
+	long	now;
+	long	delta_time;
+
+	now = ft_current_time();
+	delta_time = now - philo->last_meal;
+	if (delta_time >= philo->table->tt_die)
+	{
+		pthread_mutex_lock(&philo->table->printer_lock);
+		printf("%ld: Philosopher %d has died\n", now - philo->table->start_time, philo->id);
+		pthread_mutex_unlock(&philo->table->printer_lock);
+		philo->alive = 0;
+		philo->table->finished = 1;
+		return (1);
+	}
+	return (0);
+}
+
+void	ft_start_thinking(t_cave *cave)
+{
+	int	i;
+
+	i = -1;
+	while (++i < cave->table->size)
+		pthread_create(&cave->philos[i].thread, NULL, ft_routine, &cave->philos[i]);
+	while (!cave->table->finished)
+	{
+		i = -1;
+		while (++i < cave->table->size)
+		{
+			if (philo_died(&cave->philos[i]))
+				break ;
+		}
+		usleep(1000);
+	}
+	i = -1;
+	while (++i < cave->table->size)
+		pthread_join(cave->philos[i].thread, NULL);
+}
+static int	invalid_input(char **args, t_cave *dest)
+{
+	int		vars[5];
+
+	vars[0] = ft_atoi(args[0]);
+	vars[1] = ft_atoi(args[1]);
+	vars[2] = ft_atoi(args[2]);
+	vars[3] = ft_atoi(args[3]);
+	if (!vars[0] || !vars[1] || !vars[2] || !vars[3])
+		return (ft_error_printer(NULL, 3));
+	dest = ft_fill_cave(vars[0], vars[1], vars[2], vars[3]);
+	if (!dest)
+		return (ft_error_printer(NULL, 2));
+	if (args[4])
+	{
+		vars[4] = ft_atoi(args[4]);
+		if (!vars[4])
+			return (ft_error_printer(dest, 3));
+		dest->table->meal_count = vars[4];
+	}
+}
+int	main(int ac, char **av)
+{
+	int		status;
+	t_cave	*cave;
+
+	if (ac != 5 && ac != 6)
+		return (ft_error_printer(NULL, 1));
+	status = invalid_input(av + 1, cave);
+	if (invalid_input)
+		return (status);
+	ft_start_thinking(cave);
+	return (0);
+}
+
+=== end of ./philosophers.c ===
+=== start of ./minilib.c ===
+#include <limits.h>
+
+static int	check_valid(char *s)
+{
+	int	i;
+
+	i = 0;
+	while (s[i])
+	{
+		if (s[i] < 9 || s[i] > 13)
+		{
+			if (s[i] != ' ' && (s[i] < '0' || s[i] > '9') && s[i] != '+')
+				return (0);
+			if (s[i] == '+' && (s[i + 1] < '0' || s[i + 1] > '9'))
+				return (0);
+		}
+		i++;
+	}
+	return (1);
+}
+
+int	ft_atoi(char *s)
+{
+	long	res;
+
+	res = 0;
+	if (!check_valid(s))
+		return (0);
+	while ((*s >= 9 && *s <= 13) || *s == ' ')
+		s++;
+	if (*s == '+')
+		s++;
+	while (*s >= '0' && *s <= '9')
+	{
+		res = (res * 10) + (*s - '0');
+		s++;
+	}
+	if (res > INT_MAX || res < 0)
+		return (0);
+	return ((int)res);
+}
+
+=== end of ./minilib.c ===
+=== start of ./errors.c ===
+#include "philosophers.h"
+
+static void	clean_cave(t_cave *cave)
+{
+	if (cave)
+	{
+		if (cave->table)
+		{
+			if (cave->table->forks)
+				free(cave->table->forks);
+			free(cave->table);
+		}
+		if (cave->philos)
+			free(cave->philos);
+		free(cave);
+	}
+}
+
+static int	errors_with_clean(t_cave *cave, int code)
+{
+	clean_cave(cave);
+	if (code == 3)
+		printf("Error: even optional argument must be positive and numerical!\n");
+}
+
+int	ft_error_printer(t_cave *cave, int code)
+{
+	if (cave)
+		return (errors_with_clean(cave, code));
+	if (code == 1)
+		printf("Use: ./philosophers amount, time_to_die, time_to_eat, time_to_sleep, [Meal Count (optional)]\n");
+	else if (code == 2)
+		printf("Error: malloc error\n");
+	else if (code == 3)
+		printf("Error: arguments must be positive and numerical!\n");
+}=== end of ./errors.c ===
