@@ -10,7 +10,7 @@ static int	philo_died(t_philo *philo)
 
 	now = ft_current_time();
 	delta_time = now - philo->last_meal;
-	if (delta_time >= philo->table->tt_die)
+	if (delta_time >= philo->table->tt_die && !philo->finished)
 	{
 		pthread_mutex_lock(&philo->table->printer_lock);
 		printf("%ld: Philosopher %d has died\n", now - philo->table->start_time, philo->id);
@@ -20,6 +20,20 @@ static int	philo_died(t_philo *philo)
 		return (1);
 	}
 	return (0);
+}
+static int	empty_storage(t_cave *cave)
+{
+	int	i;
+	int	finished;
+
+	i = -1;
+	finished = 1;
+	while (++i < cave->table->size)
+	{
+		if (!cave->philos[i].finished)
+			finished = 0;
+	}
+	return (finished);
 }
 
 void	ft_start_thinking(t_cave *cave)
@@ -38,10 +52,13 @@ void	ft_start_thinking(t_cave *cave)
 				break ;
 		}
 		usleep(1000);
+		if (empty_storage(cave))
+			break ;
 	}
 	i = -1;
 	while (++i < cave->table->size)
 		pthread_join(cave->philos[i].thread, NULL);
+	ft_clean_cave(cave);
 }
 static int	invalid_input(char **args, t_cave **dest)
 {

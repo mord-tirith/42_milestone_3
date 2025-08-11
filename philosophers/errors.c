@@ -1,4 +1,6 @@
 #include "philosophers.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 static void	clean_cave(t_cave *cave)
 {

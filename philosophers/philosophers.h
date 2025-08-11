@@ -29,6 +29,7 @@ typedef struct s_philo
 	t_table			*table;
 	pthread_t		thread;
 	volatile int	alive;
+	volatile int	finished;
 	volatile long	last_meal;
 }	t_philo;
 
@@ -43,8 +44,9 @@ typedef struct s_cave
 /* Functions: */
 int		ft_atoi(char *s);
 int		ft_error_printer(t_cave *cave, int code);
-void	*ft_routine(void *arg);
 long	ft_current_time(void);
+void	ft_clean_cave(t_cave *cave);
+void	*ft_routine(void *arg);
 t_cave	*ft_fill_cave(int size, int tt_die, int tt_eat, int tt_sleep);
 
 #endif

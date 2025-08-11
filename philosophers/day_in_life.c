@@ -1,3 +1,4 @@
+
 #include "philosophers.h"
 #include <sys/time.h>
 #include <stdio.h>
@@ -11,51 +12,48 @@ static void	printer(t_philo *philo, const char *status)
 	printf("%ld: Philosopher %d is %s\n", time_now, philo->id, status);
 	pthread_mutex_unlock(&philo->table->printer_lock);
 }
-
-static void	pick_forks(int id, int f_left, int f_right, int res[3])
+static void	pick_forks(int id, int f_left, int f_right, int res[2])
 {
-	if (id % 2)
-	{
-		res[1] = f_right;
-		res[2] = f_left;
-	}
-	else
-	{
-		res[1] = f_left;
-		res[2] = f_right;
-	}
+	res[id % 2] = f_left;
+	res[!(id % 2)] = f_right;
 }
-
 static void	eat(t_philo *philo)
 {
-	int		f_vars[3];
-	char	string[64];
+	int		f[2];
 
-	f_vars[0] = philo->table->size;
-	pick_forks(philo->id, philo->left_fork, philo->right_fork, f_vars);
+	pick_forks(philo->id, philo->left_fork, philo->right_fork, f);
 	if (!philo->alive || philo->table->finished)
 		return ;
-	pthread_mutex_lock(&philo->table->forks[f_vars[1]]);
+	pthread_mutex_lock(&philo->table->forks[f[0]]);
 	if (!philo->alive || philo->table->finished)
-		return ((void)pthread_mutex_unlock(&philo->table->forks[f_vars[1]]));
-	sprintf(string, "taking fork %d", f_vars[1]);
-	printer(philo, string);
-	if (!philo->alive || philo->table->finished)
-		return ;
-	pthread_mutex_lock(&philo->table->forks[f_vars[2]]);
+		return ((void)pthread_mutex_unlock(&philo->table->forks[f[0]]));
+	printer(philo, "picking up a fork");
+	if (!philo->alive || philo->table->finished || f[0] == f[1])
+		return ((void)pthread_mutex_unlock(&philo->table->forks[f[0]]));
+	pthread_mutex_lock(&philo->table->forks[f[1]]);
 	if (!philo->alive || philo->table->finished)
 	{
-		pthread_mutex_unlock(&philo->table->forks[f_vars[1]]);
-		return ((void)pthread_mutex_unlock(&philo->table->forks[f_vars[2]]));
+		pthread_mutex_unlock(&philo->table->forks[f[0]]);
+		return ((void)pthread_mutex_unlock(&philo->table->forks[f[1]]));
 	}
-	sprintf(string, "taking fork %d", f_vars[2]);
-	printer(philo, string);
+	printer(philo, "picking up a fork");
 	philo->last_meal = ft_current_time();
 	printer(philo, "eating");
 	usleep(philo->table->tt_eat * 1000);
 	philo->meals_eaten += 1;
-	pthread_mutex_unlock(&philo->table->forks[f_vars[1]]);
-	pthread_mutex_unlock(&philo->table->forks[f_vars[2]]);
+	pthread_mutex_unlock(&philo->table->forks[f[0]]);
+	pthread_mutex_unlock(&philo->table->forks[f[1]]);
+}
+static int	finished(t_philo *philo)
+{
+	if (philo->table->meal_count == -1)
+		return (0);
+	if (philo->table->meal_count <= philo->meals_eaten)
+	{
+		philo->finished = 1;
+		return (1);
+	}
+	return (0);
 }
 
 void	*ft_routine(void *arg)
@@ -72,8 +70,13 @@ void	*ft_routine(void *arg)
 		if (!philo->alive || philo->table->finished)
 			break ;
 		eat(philo);
-		if (!philo->alive || philo->table->finished)
+		if (!philo->alive || philo->table->finished || !philo->meals_eaten)
 			break ;
+		if (finished(philo))
+		{
+			printer(philo, "finished");
+			break ;
+		}
 		printer(philo, "sleeping");
 		if (!philo->alive || philo->table->finished)
 			break ;

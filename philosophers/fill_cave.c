@@ -31,7 +31,8 @@ static int	boot_philos(t_philo **philos, t_table *table)
 	{
 		(*philos)[i].id = i + 1;
 		(*philos)[i].alive = 1;
-		(*philos)[i].tt_think = ((i * 10) % 50) * 100;
+		(*philos)[i].finished = 0;
+		(*philos)[i].tt_think = ((i * 10) % (table->tt_die / 16)) * 100;
 		(*philos)[i].meals_eaten = 0;
 		(*philos)[i].last_meal = table->start_time;
 		(*philos)[i].left_fork = i;
