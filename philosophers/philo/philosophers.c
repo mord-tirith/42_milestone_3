@@ -1,5 +1,17 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   philosophers.c                                     :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: thenriqu <thenriqu@student.42porto.com>    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/08/11 14:40:29 by thenriqu          #+#    #+#             */
+/*   Updated: 2025/08/11 18:13:50 by thenriqu         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "philosophers.h"
-#include <stdio.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -9,11 +21,14 @@ static int	philo_died(t_philo *philo)
 	long	delta_time;
 
 	now = ft_current_time();
+	pthread_mutex_lock(&philo->struct_lock);
 	delta_time = now - philo->last_meal;
+	pthread_mutex_unlock(&philo->struct_lock);
+	now -= philo->table->start_time;
 	if (delta_time >= philo->table->tt_die && !philo->finished)
 	{
 		pthread_mutex_lock(&philo->table->printer_lock);
-		printf("%ld: Philosopher %d has died\n", now - philo->table->start_time, philo->id);
+		ft_printer(philo, "died");
 		pthread_mutex_unlock(&philo->table->printer_lock);
 		philo->alive = 0;
 		philo->table->finished = 1;
@@ -21,6 +36,7 @@ static int	philo_died(t_philo *philo)
 	}
 	return (0);
 }
+
 static int	empty_storage(t_cave *cave)
 {
 	int	i;
@@ -30,8 +46,10 @@ static int	empty_storage(t_cave *cave)
 	finished = 1;
 	while (++i < cave->table->size)
 	{
+		pthread_mutex_lock(&cave->philos[i].struct_lock);
 		if (!cave->philos[i].finished)
 			finished = 0;
+		pthread_mutex_unlock(&cave->philos[i].struct_lock);
 	}
 	return (finished);
 }
@@ -42,7 +60,8 @@ void	ft_start_thinking(t_cave *cave)
 
 	i = -1;
 	while (++i < cave->table->size)
-		pthread_create(&cave->philos[i].thread, NULL, ft_routine, &cave->philos[i]);
+		pthread_create(&cave->philos[i].thread, NULL,
+			ft_routine, &cave->philos[i]);
 	while (!cave->table->finished)
 	{
 		i = -1;
@@ -60,6 +79,7 @@ void	ft_start_thinking(t_cave *cave)
 		pthread_join(cave->philos[i].thread, NULL);
 	ft_clean_cave(cave);
 }
+
 static int	invalid_input(char **args, t_cave **dest)
 {
 	int		vars[5];
@@ -82,6 +102,7 @@ static int	invalid_input(char **args, t_cave **dest)
 	}
 	return (0);
 }
+
 int	main(int ac, char **av)
 {
 	int		status;
@@ -95,4 +116,3 @@ int	main(int ac, char **av)
 	ft_start_thinking(cave);
 	return (0);
 }
-

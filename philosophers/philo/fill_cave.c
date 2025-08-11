@@ -1,4 +1,17 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   fill_cave.c                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: thenriqu <thenriqu@student.42porto.com>    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/08/11 14:40:13 by thenriqu          #+#    #+#             */
+/*   Updated: 2025/08/11 18:13:50 by thenriqu         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "philosophers.h"
+#include <pthread.h>
 #include <stdlib.h>
 
 static int	boot_table(t_table *table, int size)
@@ -38,6 +51,7 @@ static int	boot_philos(t_philo **philos, t_table *table)
 		(*philos)[i].left_fork = i;
 		(*philos)[i].right_fork = (*philos)[i].id % table->size;
 		(*philos)[i].table = table;
+		pthread_mutex_init(&(*philos)[i].struct_lock, NULL);
 	}
 	return (1);
 }
@@ -75,4 +89,3 @@ t_cave	*ft_fill_cave(int size, int tt_die, int tt_eat, int tt_sleep)
 		return (clean_return(new_cave));
 	return (new_cave);
 }
-
