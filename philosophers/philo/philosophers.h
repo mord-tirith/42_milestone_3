@@ -1,64 +1,63 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   philosophers.h                                     :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: thenriqu <thenriqu@student.42porto.com>    +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/08/11 14:46:28 by thenriqu          #+#    #+#             */
-/*   Updated: 2025/08/11 18:13:50 by thenriqu         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #ifndef PHILOSOPHERS_H
 # define PHILOSOPHERS_H
 
 /* Includes: */
+# include <stdbool.h>
 # include <pthread.h>
-# include <unistd.h>
-/* Types: */
 
+/* Types: */
 typedef struct s_table
 {
+	int				meals;
 	int				size;
-	int				tt_die;
-	int				tt_eat;
-	int				tt_sleep;
-	int				meal_count;
-	int				finished;
-	long			start_time;
 	pthread_mutex_t	*forks;
-	pthread_mutex_t	printer_lock;
 }	t_table;
 
 typedef struct s_philo
 {
-	int				id;
-	int				tt_think;
-	int				left_fork;
-	int				right_fork;
-	int				meals_eaten;
-	t_table			*table;
-	pthread_t		thread;
-	volatile int	alive;
-	volatile int	finished;
-	volatile long	last_meal;
-	pthread_mutex_t	struct_lock;
+	int					id;
+	int					tt_think;
+	int					tt_eat;
+	int					tt_sleep;
+	int					tt_die;
+	int					meals_eaten;
+	int					l_fork;
+	int					r_fork;
+	long				last_meal;
+	bool				alive;
+	bool				done;
+	pthread_t			thread;
+	struct s_cave		*cave;
+	pthread_mutex_t		philock;
 }	t_philo;
 
 typedef struct s_cave
 {
-	t_table	*table;
-	t_philo	*philos;
+	long			now;
+	long			start;
+	bool			finished;
+	bool			finite;
+	t_table			table;
+	t_philo			*philos;
+	pthread_mutex_t	print_lock;
+	pthread_mutex_t	cavelock;
 }	t_cave;
 
-/* Functions: */
-int		ft_atoi(char *s);
-int		ft_error_printer(t_cave *cave, int code);
-void	ft_printer(t_philo *philo, const char *status);
-long	ft_current_time(void);
-void	ft_clean_cave(t_cave *cave);
-void	*ft_routine(void *arg);
-t_cave	*ft_fill_cave(int size, int tt_die, int tt_eat, int tt_sleep);
+/* Macros: */
+# define NO_LIM -42
+# define FOR_ERR "thread creation failed"
+# define MUT_ERR "mutex creation failed"
+# define MAL_ERR "internal malloc error"
+# define ARG_ERR "size, tt_die, tt_eat, tt_sleep [, meal_count (optional)]"
+# define VAL_ERR "arguments must be positive integers only"
 
+/* Functions: */
+int		ft_atoi(char *str);
+int		ft_prepare_cave(t_cave *cave, int args[5]);
+int		ft_handle_error(t_cave *cave, int error);
+int		ft_start_thinking(t_cave *cave);
+long	ft_clock(void);
+void	ft_clean_cave(t_cave *cave);
+void	ft_printer(t_cave *c, t_philo *p, char *msg);
+void	*ft_routine(void *arg);
 #endif
