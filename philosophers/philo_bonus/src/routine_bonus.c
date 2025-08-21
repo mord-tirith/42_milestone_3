@@ -1,64 +1,51 @@
 
 #include "philo_bonus.h"
-#include <semaphore.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
+#include <unistd.h>
+#include <pthread.h>
 
-static void	safe_sleep(int id, int tt, t_cave *c, bool literal)
+void	*death_watch(void *arg)
 {
-	if (!literal)
-		tt *= 1000;
-	while (tt > 0)
+	t_cave	*self;
+
+	self = (t_cave *)arg;
+	while (42)
 	{
-		usleep(1000);
-		if (ft_clock() - c->last_meal > c->tt_die)
+		if (ft_clock() - self->last_meal > self->tt_die)
 		{
-			ft_printer(id, DIE, "has died", c);
+			ft_printer(self->id, DIE, "has died", self);
 			exit(DIED);
 		}
-		tt -= 1000;
+		if (self->servings <= 0 && self->finite)
+			exit(FINI);
+		usleep(self->tt_die * 100);
 	}
+	return (NULL);
 }
 
-static void	take_action(int i, int a, char *m, t_cave *c)
+void	ft_routine(t_cave *cave)
 {
-	long	now;
+	pthread_t	watcher;
 
-	now = ft_clock();
-	if (now - c->last_meal > c->tt_die)
-	{
-		ft_printer(i, DIE, "has died", c);
-		exit(DIED);
-	}
-	else
-		ft_printer(i, a, m, c);
-}
-
-void	ft_routine(t_cave *cave, int id)
-{
 	cave->last_meal = ft_clock();
+	pthread_create(&watcher, NULL, death_watch, cave);
+	pthread_detach(watcher);
 	while (!cave->done)
 	{
-		take_action(id, THINK, "is thinking", cave);
-		usleep((id * 100) % (cave->tt_die / 2));
-		safe_sleep(id, (id * 100) % (cave->tt_die / 2), cave, true);
+		ft_printer(cave->id, THINK, "is thinking", cave);
+		usleep((cave->id * 100) % (cave->tt_die / 2));
 		sem_wait(cave->forks);
-		take_action(id, PICK, "has taken a fork", cave);
+		ft_printer(cave->id, PICK, "has taken a fork", cave);
 		sem_wait(cave->forks);
-		take_action(id, PICK, "has taken a fork", cave);
+		ft_printer(cave->id, PICK, "has taken a fork", cave);
 		cave->last_meal = ft_clock();
-		take_action(id, EAT, "is eating", cave);
-		safe_sleep(id, cave->tt_eat, cave, false);
-		sem_post(cave->forks);
-		sem_post(cave->forks);
+		ft_printer(cave->id, EAT, "is eating", cave);
+		usleep(cave->tt_eat * 1000);
 		if (cave->finite)
-		{
 			cave->servings -= 1;
-			if (!cave->servings)
-				exit(FINI);
-		}
-		take_action(id, SLEEP, "is sleeping", cave);
-		safe_sleep(id, cave->tt_sleep, cave, false);
+		sem_post(cave->forks);
+		sem_post(cave->forks);
+		ft_printer(cave->id, SLEEP, "is sleeping", cave);
+		usleep(cave->tt_sleep * 1000);
 	}
 }

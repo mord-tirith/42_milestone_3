@@ -19,6 +19,7 @@ typedef enum e_colors
 
 typedef struct s_cave
 {
+	int		id;
 	int		size;
 	int		tt_die;
 	int		tt_eat;
@@ -55,5 +56,5 @@ int		ft_boot_sim(t_cave *cave);
 int		ft_handle_error(int code, t_cave *cave);
 long	ft_clock(void);
 void	ft_printer(int id, int action, char *msg, t_cave *cave);
-void	ft_routine(t_cave *cave, int id);
+void	ft_routine(t_cave *cave);
 #endif

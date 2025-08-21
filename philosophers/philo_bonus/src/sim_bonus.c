@@ -49,7 +49,8 @@ int	ft_boot_sim(t_cave *cave)
 			return (ft_handle_error(5, cave));
 		if (cave->pids[i] == 0)
 		{
-			ft_routine(cave, i + 1);
+			cave->id = i + 1;
+			ft_routine(cave);
 			exit(IMPO);
 		}
 	}

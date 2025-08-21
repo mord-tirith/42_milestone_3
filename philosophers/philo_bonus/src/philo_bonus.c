@@ -47,8 +47,6 @@ static int	parse_args(char **av, t_cave *cave)
 	return (1);
 }
 
-#include <stdio.h>
-
 int	main(int ac, char **av)
 {
 	static t_cave	cave;
