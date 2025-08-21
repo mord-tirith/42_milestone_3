@@ -56,7 +56,7 @@ static void	*lonely_death(t_philo *p)
 {
 	take_action(p->tt_think, THINK, "is thinking", p);
 	take_action(0, PICK, "has taken a fork", p);
-	usleep(p->table->tt_die * 2);
+	usleep(p->table->tt_die);
 	return (NULL);
 }
 

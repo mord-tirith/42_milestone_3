@@ -2,6 +2,7 @@
 #include "philo.h"
 #include <pthread.h>
 
+
 static void	make_philo(int i, t_philo *p, t_table *t)
 {
 	p->id = i + 1;
