@@ -12,8 +12,8 @@ SRC_DIR	= src/
 OBJ_DIR	= .obj/
 
 # File Variables:
-SRC_FILES	= cleaner.c error.c looper.c philo.c routine.c sim.c utils.c
-SRC				= $(addprefix $(SRC_DIR), $(SRC_FILES))
+SRC_FILES	= cleanup error philo routine sim utils
+SRC				= $(addprefix $(SRC_DIR), $(addsuffix _bonus.c, $(SRC_FILES)))
 OBJ				:= $(patsubst $(SRC_DIR)%.c, $(OBJ_DIR)%.o, $(SRC))
 
 # Compiler Variables:
@@ -22,7 +22,7 @@ CFLAGS	= -Wall -Wextra -Werror -g
 
 # Valgrind Variables:
 VAL_OUT	= allgrind.log
-VAL_RUN = $(NAME) 3 800 200 200 3
+VAL_RUN = ./$(NAME) 2 800 200 200 2
 
 # Makefile Variables:
 MAKEFLAGS += --no-print-directory
